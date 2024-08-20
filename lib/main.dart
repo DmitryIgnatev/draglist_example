@@ -23,14 +23,13 @@ class TaskBoardScreen extends StatefulWidget {
 }
 
 class _TaskBoardScreenState extends State<TaskBoardScreen> {
-  int? dragColumnIndex;
+  Map<String, int?> dragPositionIndex = {};
   final double _scrollSpeed = 10.0;
   final ScrollController _scrollController = ScrollController();
   final List<List<String>> columns = [
     ['Task 1', 'Task 2'],
     ['Task 3', 'Task 4'],
     ['Task 5', 'Task 6'],
-    // Add more columns as needed
   ];
 
   @override
@@ -48,26 +47,18 @@ class _TaskBoardScreenState extends State<TaskBoardScreen> {
           return DragTarget<String>(
             onMove: (details) {
               setState(() {
-                dragColumnIndex = columnIndex;
+                dragPositionIndex['column'] = columnIndex;
               });
             },
-            onAcceptWithDetails: (task) {
-              setState(() {
-                // Remove the task from its previous column
-                for (var column in columns) {
-                  column.remove(task.data);
-                }
-                // Add the task to the new column
-                columns[columnIndex].add(task.data);
-              });
-            },
+            onAcceptWithDetails: (task) =>
+                dropToColumn(task: task, columnIndex: columnIndex),
             builder: (context, candidateData, rejectedData) {
               return Align(
                 alignment: Alignment.topCenter,
                 child: Container(
                   width: 200,
                   decoration: BoxDecoration(
-                      color: columnIndex == dragColumnIndex
+                      color: columnIndex == dragPositionIndex['column']
                           ? Colors.blue
                           : Colors.grey[300],
                       borderRadius: BorderRadius.circular(12)),
@@ -89,7 +80,29 @@ class _TaskBoardScreenState extends State<TaskBoardScreen> {
                               final task = column[index];
                               return Column(
                                 children: [
-                                  const SizedBox(height: 10),
+                                  DragTarget<String>(
+                                      onMove: (details) {
+                                        setState(() {
+                                          dragPositionIndex['column'] =
+                                              columnIndex;
+                                          dragPositionIndex['task'] = index;
+                                        });
+                                      },
+                                      onAcceptWithDetails: (task) =>
+                                          dropToColumn(
+                                              task: task,
+                                              columnIndex: columnIndex),
+                                      builder: (context, candidateData,
+                                          rejectedData) {
+                                        return Container(
+                                            height: dragPositionIndex[
+                                                            'column'] ==
+                                                        columnIndex &&
+                                                    dragPositionIndex['task'] ==
+                                                        index
+                                                ? 40
+                                                : 10);
+                                      }),
                                   Draggable<String>(
                                     data: task,
                                     feedback: Material(
@@ -99,7 +112,7 @@ class _TaskBoardScreenState extends State<TaskBoardScreen> {
                                     ),
                                     onDragEnd: (details) {
                                       setState(() {
-                                        dragColumnIndex = null;
+                                        dragPositionIndex['column'] = null;
                                       });
                                     },
                                     onDragUpdate: (details) {
@@ -131,6 +144,18 @@ class _TaskBoardScreenState extends State<TaskBoardScreen> {
         },
       ),
     );
+  }
+
+  void dropToColumn(
+      {required DragTargetDetails<String> task, required int columnIndex}) {
+    setState(() {
+      // Remove the task from its previous column
+      for (var column in columns) {
+        column.remove(task.data);
+      }
+      // Add the task to the new column
+      columns[columnIndex].add(task.data);
+    });
   }
 
   void _scrollRight() {
