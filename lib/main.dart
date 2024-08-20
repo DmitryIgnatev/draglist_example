@@ -23,6 +23,7 @@ class TaskBoardScreen extends StatefulWidget {
 }
 
 class _TaskBoardScreenState extends State<TaskBoardScreen> {
+  int? dragColumnIndex;
   final double _scrollSpeed = 10.0;
   final ScrollController _scrollController = ScrollController();
   final List<List<String>> columns = [
@@ -45,6 +46,11 @@ class _TaskBoardScreenState extends State<TaskBoardScreen> {
         itemCount: columns.length,
         itemBuilder: (context, columnIndex) {
           return DragTarget<String>(
+            onMove: (details) {
+              setState(() {
+                dragColumnIndex = columnIndex;
+              });
+            },
             onAcceptWithDetails: (task) {
               setState(() {
                 // Remove the task from its previous column
@@ -56,40 +62,67 @@ class _TaskBoardScreenState extends State<TaskBoardScreen> {
               });
             },
             builder: (context, candidateData, rejectedData) {
-              return Container(
-                width: 200,
-                decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(12)),
-                margin: const EdgeInsets.all(8),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Column ${columnIndex + 1}',
-                          style: const TextStyle(fontSize: 18)),
-                      for (var task in columns[columnIndex])
-                        Draggable<String>(
-                          data: task,
-                          feedback: Material(
-                            child: TaksCard(task: task, isDragging: true),
+              return Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  width: 200,
+                  decoration: BoxDecoration(
+                      color: columnIndex == dragColumnIndex
+                          ? Colors.blue
+                          : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(12)),
+                  margin: const EdgeInsets.all(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Column ${columnIndex + 1}',
+                            style: const TextStyle(fontSize: 18)),
+                        Flexible(
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: columns[columnIndex].length,
+                            itemBuilder: (context, index) {
+                              final column = columns[columnIndex];
+                              final task = column[index];
+                              return Column(
+                                children: [
+                                  const SizedBox(height: 10),
+                                  Draggable<String>(
+                                    data: task,
+                                    feedback: Material(
+                                      color: Colors.transparent,
+                                      child: TaksCard(
+                                          task: task, isDragging: true),
+                                    ),
+                                    onDragEnd: (details) {
+                                      setState(() {
+                                        dragColumnIndex = null;
+                                      });
+                                    },
+                                    onDragUpdate: (details) {
+                                      debugPrint('${details.globalPosition}');
+                                      debugPrint('$width');
+                                      if (details.globalPosition.dx >
+                                          width - scrollThreshold) {
+                                        _scrollRight();
+                                      }
+                                      if (details.globalPosition.dx <
+                                          scrollThreshold) {
+                                        _scrollLeft();
+                                      }
+                                    },
+                                    child: TaksCard(task: task),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
-                          onDragUpdate: (details) {
-                            debugPrint('${details.globalPosition}');
-                            debugPrint('$width');
-                            if (details.globalPosition.dx >
-                                width - scrollThreshold) {
-                              _scrollRight();
-                            }
-                            if (details.globalPosition.dx < scrollThreshold) {
-                              _scrollLeft();
-                            }
-                          },
-                          childWhenDragging: Container(),
-                          child: TaksCard(task: task),
-                        ),
-                    ],
+                        )
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -131,6 +164,7 @@ class TaksCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      margin: const EdgeInsets.all(0),
       color: isDragging ? Colors.blueAccent : Colors.white,
       child: SizedBox(
         width: 200,
