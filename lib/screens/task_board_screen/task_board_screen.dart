@@ -1,5 +1,6 @@
 import 'package:draglist_example/screens/task_board_screen/widgets/task_card.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 class TaskBoardScreen extends StatefulWidget {
   const TaskBoardScreen({super.key});
@@ -8,15 +9,19 @@ class TaskBoardScreen extends StatefulWidget {
   State<TaskBoardScreen> createState() => _TaskBoardScreenState();
 }
 
+enum DragScrollDirection { left, right }
+
 class _TaskBoardScreenState extends State<TaskBoardScreen> {
   Map<String, int?> dragPositionIndex = {};
-  final double _scrollSpeed = 10.0;
+  final double _scrollSpeed = 25.0;
   final ScrollController _scrollController = ScrollController();
   final List<List<String>> columns = [
     ['Task 1', 'Task 2'],
     ['Task 3', 'Task 4'],
     ['Task 5', 'Task 6'],
   ];
+
+  Timer? _scrollTimer;
 
   @override
   Widget build(BuildContext context) {
@@ -100,17 +105,23 @@ class _TaskBoardScreenState extends State<TaskBoardScreen> {
                                       setState(() {
                                         dragPositionIndex['column'] = null;
                                       });
+                                      // Stop scrolling when drag ends
+                                      _stopScrolling();
                                     },
                                     onDragUpdate: (details) {
-                                      debugPrint('${details.globalPosition}');
-                                      debugPrint('$width');
                                       if (details.globalPosition.dx >
                                           width - scrollThreshold) {
-                                        _scrollRight();
-                                      }
-                                      if (details.globalPosition.dx <
+                                        _startScrolling(
+                                            direction:
+                                                DragScrollDirection.right);
+                                      } else if (details.globalPosition.dx <
                                           scrollThreshold) {
-                                        _scrollLeft();
+                                        _startScrolling(
+                                            direction:
+                                                DragScrollDirection.left);
+                                      } else {
+                                        // Stop scrolling when not near the edges
+                                        _stopScrolling();
                                       }
                                     },
                                     child: TaksCard(task: task),
@@ -142,6 +153,23 @@ class _TaskBoardScreenState extends State<TaskBoardScreen> {
       // Add the task to the new column
       columns[columnIndex].add(task.data);
     });
+  }
+
+  void _startScrolling({required DragScrollDirection direction}) {
+    _stopScrolling(); // Cancel any existing timer
+    _scrollTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      switch (direction) {
+        case DragScrollDirection.right:
+          _scrollRight();
+        case DragScrollDirection.left:
+          _scrollLeft();
+      }
+    });
+  }
+
+  void _stopScrolling() {
+    _scrollTimer?.cancel();
+    _scrollTimer = null;
   }
 
   void _scrollRight() {
